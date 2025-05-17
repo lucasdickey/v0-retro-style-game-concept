@@ -8,6 +8,8 @@ export default function ChaosMonkey() {
   const [lives, setLives] = useState(3)
   const [gameOver, setGameOver] = useState(false)
   const [gameWon, setGameWon] = useState(false)
+  const [tokensCollected, setTokensCollected] = useState(0)
+  const tokensCollectedRef = useRef(0)
   const [gameStarted, setGameStarted] = useState(false)
 
   useEffect(() => {
@@ -25,7 +27,7 @@ export default function ChaosMonkey() {
     const GRID_HEIGHT = Math.floor(canvas.height / GRID_SIZE)
     const PLAYER_SPEED = 6 // Player moves every 6 frames (lower = faster)
     const APE_SPEED = 10 // Apes move every 10 frames (lower = faster)
-    const TOKENS_TO_WIN = 50 // Number of tokens needed to win
+    const TOKENS_TO_WIN = 25 // Number of tokens needed to win
     let frameCounter = 0
 
     // Game state
@@ -42,7 +44,6 @@ export default function ChaosMonkey() {
     let powerMode = false
     let powerModeTimer = 0
     let gameLoopId: number
-    let tokensCollected = 0
 
     // Maze layout (1 = wall, 0 = path)
     const maze = Array(GRID_HEIGHT)
@@ -103,7 +104,8 @@ export default function ChaosMonkey() {
 
         powerMode = false
         powerModeTimer = 0
-        tokensCollected = 0
+        setTokensCollected(0)
+        tokensCollectedRef.current = 0
         setScore(0)
       } catch (error) {
         console.error("Error in initGame:", error)
@@ -345,6 +347,56 @@ export default function ChaosMonkey() {
           // Ensure ape stays within bounds
           ape.x = Math.max(0, Math.min(GRID_WIDTH - 1, ape.x))
           ape.y = Math.max(0, Math.min(GRID_HEIGHT - 1, ape.y))
+
+          // Check if ape has collided with the player's head
+          if (ape.x === player.x && ape.y === player.y) {
+            if (powerMode) {
+              // Player eats ape when powered up
+              const capturedApeIndex = i
+              apes.splice(capturedApeIndex, 1)
+              setScore((prevScore) => prevScore + 10)
+
+              // Remove two additional random apes if available
+              if (apes.length >= 2) {
+                const indicesToRemove = [] as number[]
+                while (indicesToRemove.length < 2 && indicesToRemove.length < apes.length) {
+                  const randomIndex = Math.floor(Math.random() * apes.length)
+                  if (!indicesToRemove.includes(randomIndex)) {
+                    indicesToRemove.push(randomIndex)
+                  }
+                }
+
+                indicesToRemove.sort((a, b) => b - a)
+
+                indicesToRemove.forEach((index) => {
+                  apes.splice(index, 1)
+                  setScore((prevScore) => prevScore + 5)
+                })
+              }
+
+              // Respawn apes after a delay
+              setTimeout(() => {
+                const apesToRespawn = Math.min(3, 4 - apes.length)
+                spawnNewApes(apesToRespawn)
+              }, 3000)
+              return
+            } else {
+              // Ape catches player
+              setLives((prevLives) => {
+                const newLives = prevLives <= 1 ? 0 : prevLives - 1
+                if (newLives === 0) {
+                  setGameOver(true)
+                } else {
+                  player.x = Math.floor(GRID_WIDTH / 2)
+                  player.y = Math.floor(GRID_HEIGHT / 2)
+                  player.trail = []
+                  player.direction = { x: 0, y: 0 }
+                }
+                return newLives
+              })
+              return
+            }
+          }
         }
       } catch (error) {
         console.error("Error in moveApes:", error)
@@ -395,11 +447,13 @@ export default function ChaosMonkey() {
             if (token && token.x === player.x && token.y === player.y) {
               tokens.splice(i, 1)
               player.tailLength += 1
-              tokensCollected += 1
+              tokensCollectedRef.current += 1
+              const newTokens = tokensCollectedRef.current
+              setTokensCollected(newTokens)
               setScore((prevScore) => prevScore + 1)
 
               // Check win condition
-              if (tokensCollected >= TOKENS_TO_WIN) {
+              if (newTokens >= TOKENS_TO_WIN) {
                 setGameWon(true)
                 // Immediately draw the win screen and stop the game loop
                 drawWinScreen()
@@ -599,24 +653,29 @@ export default function ChaosMonkey() {
           apes.forEach((ape) => {
             if (!ape) return
 
+            const baseX = ape.x * GRID_SIZE
+            const baseY = ape.y * GRID_SIZE
+
             // Ape body
-            ctx.fillStyle = powerMode ? "#0000FF" : "#FF0000"
-            ctx.fillRect(ape.x * GRID_SIZE, ape.y * GRID_SIZE, GRID_SIZE, GRID_SIZE)
+            ctx.fillStyle = powerMode ? "#0000FF" : "#8B4513"
+            ctx.fillRect(baseX, baseY, GRID_SIZE, GRID_SIZE)
+
+            // Ape ears
+            ctx.fillRect(baseX - GRID_SIZE / 6, baseY + GRID_SIZE / 6, GRID_SIZE / 6, GRID_SIZE / 3)
+            ctx.fillRect(baseX + GRID_SIZE, baseY + GRID_SIZE / 6, GRID_SIZE / 6, GRID_SIZE / 3)
+
+            // Ape face
+            ctx.fillStyle = powerMode ? "#0000AA" : "#A0522D"
+            ctx.fillRect(baseX + GRID_SIZE / 4, baseY + GRID_SIZE / 2, GRID_SIZE / 2, GRID_SIZE / 3)
 
             // Ape eyes
             ctx.fillStyle = "#FFFFFF"
-            ctx.fillRect(
-              ape.x * GRID_SIZE + GRID_SIZE / 4,
-              ape.y * GRID_SIZE + GRID_SIZE / 4,
-              GRID_SIZE / 6,
-              GRID_SIZE / 6,
-            )
-            ctx.fillRect(
-              ape.x * GRID_SIZE + (GRID_SIZE * 3) / 5,
-              ape.y * GRID_SIZE + GRID_SIZE / 4,
-              GRID_SIZE / 6,
-              GRID_SIZE / 6,
-            )
+            ctx.fillRect(baseX + GRID_SIZE / 4, baseY + GRID_SIZE / 4, GRID_SIZE / 6, GRID_SIZE / 6)
+            ctx.fillRect(baseX + (GRID_SIZE * 3) / 5, baseY + GRID_SIZE / 4, GRID_SIZE / 6, GRID_SIZE / 6)
+
+            // Ape mouth
+            ctx.fillStyle = "#000"
+            ctx.fillRect(baseX + GRID_SIZE / 3, baseY + (GRID_SIZE * 2) / 3, GRID_SIZE / 3, GRID_SIZE / 6)
           })
         }
 
@@ -624,7 +683,7 @@ export default function ChaosMonkey() {
         ctx.fillStyle = "#FFFFFF"
         ctx.font = "20px monospace"
         ctx.textAlign = "left"
-        ctx.fillText(`TOKENS: ${tokensCollected}/${TOKENS_TO_WIN}`, 10, 30)
+        ctx.fillText(`UBI CREDITS: ${tokensCollected}/${TOKENS_TO_WIN}`, 10, 30)
 
         // Draw lives
         ctx.fillText(`LIVES: ${lives}`, canvas.width - 150, 30)
@@ -793,7 +852,7 @@ export default function ChaosMonkey() {
           <h2 className="text-3xl mb-8 text-center font-press-start">CHAOS MONKEY</h2>
           <div className="mb-8 text-center">
             <p className="mb-4">Use arrow keys to move</p>
-            <p className="mb-4">Collect 50 tokens to win</p>
+            <p className="mb-4">Collect 25 UBI Credits to win</p>
             <p className="mb-4">Avoid apes unless you have power-up</p>
             <p className="mb-4">Blue power-ups let you eat apes!</p>
             <p className="mb-4">Eating one ape destroys two more!</p>
@@ -810,7 +869,7 @@ export default function ChaosMonkey() {
       )}
 
       <div className="mt-4 text-sm text-gray-600">
-        Use arrow keys to control. Collect 50 tokens to win. Blue power-ups let you eat the red apes!
+        Use arrow keys to control. Collect 25 UBI Credits to win. Blue power-ups let you eat the red apes!
       </div>
     </div>
   )
