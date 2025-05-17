@@ -1,7 +1,9 @@
 {
-  "name": "my-v0-project",
+  "name": "chaos-monkey-game",
   "version": "0.1.0",
-  "private": true,
+  "exports": "./index.ts",
+  "main": "./index.ts",
+  "types": "./index.ts",
   "scripts": {
     "dev": "next dev",
     "build": "next build",

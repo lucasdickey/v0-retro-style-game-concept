@@ -28,3 +28,25 @@ Continue building your app on:
 2. Deploy your chats from the v0 interface
 3. Changes are automatically pushed to this repository
 4. Vercel deploys the latest version from this repository
+
+## Embedding in another Next.js app
+
+This repository exposes the `ChaosMonkey` React component so it can be
+embedded in any other Next.js project. Install it directly from the git
+repository and import the component:
+
+```bash
+npm install <path-or-git-url-to-this-repo>
+```
+
+```tsx
+import { ChaosMonkey } from 'chaos-monkey-game'
+
+export default function Example() {
+  return <ChaosMonkey />
+}
+```
+
+The widget renders the game canvas on the client. Make sure that the
+component is used inside a client component when using the Next.js `app`
+router.
