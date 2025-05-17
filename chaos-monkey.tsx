@@ -8,6 +8,8 @@ export default function ChaosMonkey() {
   const [lives, setLives] = useState(3)
   const [gameOver, setGameOver] = useState(false)
   const [gameWon, setGameWon] = useState(false)
+  const [tokensCollected, setTokensCollected] = useState(0)
+  const tokensCollectedRef = useRef(0)
   const [gameStarted, setGameStarted] = useState(false)
 
   useEffect(() => {
@@ -42,7 +44,6 @@ export default function ChaosMonkey() {
     let powerMode = false
     let powerModeTimer = 0
     let gameLoopId: number
-    let tokensCollected = 0
 
     // Maze layout (1 = wall, 0 = path)
     const maze = Array(GRID_HEIGHT)
@@ -103,7 +104,8 @@ export default function ChaosMonkey() {
 
         powerMode = false
         powerModeTimer = 0
-        tokensCollected = 0
+        setTokensCollected(0)
+        tokensCollectedRef.current = 0
         setScore(0)
       } catch (error) {
         console.error("Error in initGame:", error)
@@ -445,11 +447,13 @@ export default function ChaosMonkey() {
             if (token && token.x === player.x && token.y === player.y) {
               tokens.splice(i, 1)
               player.tailLength += 1
-              tokensCollected += 1
+              tokensCollectedRef.current += 1
+              const newTokens = tokensCollectedRef.current
+              setTokensCollected(newTokens)
               setScore((prevScore) => prevScore + 1)
 
               // Check win condition
-              if (tokensCollected >= TOKENS_TO_WIN) {
+              if (newTokens >= TOKENS_TO_WIN) {
                 setGameWon(true)
                 // Immediately draw the win screen and stop the game loop
                 drawWinScreen()
