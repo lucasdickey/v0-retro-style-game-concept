@@ -834,11 +834,6 @@ export default function ChaosMonkey() {
       ctx.fillStyle = "#FFFFFF";
       ctx.font = "20px monospace";
       ctx.fillText(
-        `FINAL SCORE: ${score}`,
-        canvas.width / 2,
-        canvas.height / 2 + 20
-      );
-      ctx.fillText(
         "PRESS SPACE TO PLAY AGAIN",
         canvas.width / 2,
         canvas.height / 2 + 60
@@ -878,15 +873,6 @@ export default function ChaosMonkey() {
           ctx.textAlign = "center";
           ctx.textBaseline = "middle";
           ctx.fillText("GAME OVER", canvas.width / 2, canvas.height / 2 - 80);
-
-          // Final score
-          ctx.fillStyle = "#FFFFFF";
-          ctx.font = "32px monospace";
-          ctx.fillText(
-            `FINAL SCORE: ${score}`,
-            canvas.width / 2,
-            canvas.height / 2 - 10
-          );
 
           // Button-like prompt
           ctx.save();
@@ -1032,10 +1018,6 @@ export default function ChaosMonkey() {
 
   return (
     <div className="flex flex-col items-center justify-center w-full max-w-[800px] mx-auto">
-      <h1 className="text-4xl font-bold mb-4 text-center font-press-start">
-        CHAOS MONKEY
-      </h1>
-
       {!gameStarted ? (
         <div
           className="flex flex-col items-center justify-center p-8 w-full h-[600px] relative overflow-hidden"
