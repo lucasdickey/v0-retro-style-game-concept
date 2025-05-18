@@ -49,6 +49,7 @@ export default function ChaosMonkey() {
     let powerMode = false;
     let powerModeTimer = 0;
     let gameLoopId: number;
+    let apeIntervalId: number | undefined;
 
     // Maze layout (1 = wall, 0 = path)
     const maze: number[][] = Array(GRID_HEIGHT)
@@ -681,28 +682,52 @@ export default function ChaosMonkey() {
 
         // Draw player
         if (player) {
-          ctx.fillStyle = "#00FF00";
-          ctx.fillRect(
-            player.x * GRID_SIZE,
-            player.y * GRID_SIZE,
-            GRID_SIZE,
-            GRID_SIZE
+          // Draw yellow face
+          ctx.beginPath();
+          ctx.arc(
+            player.x * GRID_SIZE + GRID_SIZE / 2,
+            player.y * GRID_SIZE + GRID_SIZE / 2,
+            GRID_SIZE / 2,
+            0,
+            Math.PI * 2
           );
+          ctx.fillStyle = "#FFD600";
+          ctx.fill();
+          ctx.closePath();
 
-          // Draw eyes on player
-          ctx.fillStyle = "#FFFFFF";
-          ctx.fillRect(
-            player.x * GRID_SIZE + GRID_SIZE / 4,
-            player.y * GRID_SIZE + GRID_SIZE / 4,
-            GRID_SIZE / 6,
-            GRID_SIZE / 6
+          // Draw eyes
+          ctx.beginPath();
+          ctx.arc(
+            player.x * GRID_SIZE + GRID_SIZE / 3,
+            player.y * GRID_SIZE + GRID_SIZE / 2.5,
+            GRID_SIZE / 10,
+            0,
+            Math.PI * 2
           );
-          ctx.fillRect(
-            player.x * GRID_SIZE + (GRID_SIZE * 3) / 5,
-            player.y * GRID_SIZE + GRID_SIZE / 4,
-            GRID_SIZE / 6,
-            GRID_SIZE / 6
+          ctx.arc(
+            player.x * GRID_SIZE + (GRID_SIZE * 2) / 3,
+            player.y * GRID_SIZE + GRID_SIZE / 2.5,
+            GRID_SIZE / 10,
+            0,
+            Math.PI * 2
           );
+          ctx.fillStyle = "#222";
+          ctx.fill();
+          ctx.closePath();
+
+          // Draw smile
+          ctx.beginPath();
+          ctx.arc(
+            player.x * GRID_SIZE + GRID_SIZE / 2,
+            player.y * GRID_SIZE + (GRID_SIZE * 2) / 3,
+            GRID_SIZE / 5,
+            0,
+            Math.PI
+          );
+          ctx.lineWidth = 2;
+          ctx.strokeStyle = "#222";
+          ctx.stroke();
+          ctx.closePath();
         }
 
         // Draw apes
@@ -826,6 +851,12 @@ export default function ChaosMonkey() {
     // Game loop
     function gameLoop() {
       try {
+        // Global win check: show win screen and stop game if tokensCollectedRef.current >= TOKENS_TO_WIN
+        if (tokensCollectedRef.current >= TOKENS_TO_WIN) {
+          setGameWon(true);
+          drawWinScreen();
+          return;
+        }
         if (gameWon) {
           // If game is won, draw win screen and stop the loop
           drawWinScreen();
@@ -835,28 +866,54 @@ export default function ChaosMonkey() {
         if (gameOver) {
           cancelAnimationFrame(gameLoopId);
 
-          // Draw game over screen
+          // Draw game over screen with overlay
           if (!ctx || !canvas) return;
-          ctx.fillStyle = "#000";
+          // Semi-transparent black overlay
+          ctx.fillStyle = "rgba(0, 0, 0, 0.85)";
           ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-          // Game over screen
-          ctx.fillStyle = "#FF0000";
-          ctx.font = "40px monospace";
+          // GAME OVER text
+          ctx.fillStyle = "#FF3333";
+          ctx.font = "bold 64px monospace";
           ctx.textAlign = "center";
-          ctx.fillText("GAME OVER", canvas.width / 2, canvas.height / 2 - 40);
+          ctx.textBaseline = "middle";
+          ctx.fillText("GAME OVER", canvas.width / 2, canvas.height / 2 - 80);
 
+          // Final score
           ctx.fillStyle = "#FFFFFF";
-          ctx.font = "20px monospace";
+          ctx.font = "32px monospace";
           ctx.fillText(
             `FINAL SCORE: ${score}`,
             canvas.width / 2,
-            canvas.height / 2 + 20
+            canvas.height / 2 - 10
           );
+
+          // Button-like prompt
+          ctx.save();
+          ctx.beginPath();
+          ctx.roundRect(
+            canvas.width / 2 - 180,
+            canvas.height / 2 + 40,
+            360,
+            60,
+            20
+          );
+          ctx.fillStyle = "#222";
+          ctx.globalAlpha = 0.95;
+          ctx.fill();
+          ctx.globalAlpha = 1.0;
+          ctx.lineWidth = 4;
+          ctx.strokeStyle = "#FF3333";
+          ctx.stroke();
+          ctx.closePath();
+          ctx.restore();
+
+          ctx.fillStyle = "#FF3333";
+          ctx.font = "bold 28px monospace";
           ctx.fillText(
             "PRESS SPACE TO RESTART",
             canvas.width / 2,
-            canvas.height / 2 + 60
+            canvas.height / 2 + 70
           );
 
           return;
@@ -944,6 +1001,13 @@ export default function ChaosMonkey() {
       }
     }
 
+    // --- Ape spawn interval ---
+    apeIntervalId = window.setInterval(() => {
+      if (apes.length < 8) {
+        spawnNewApes(1);
+      }
+    }, 10000);
+
     // Initialize game
     initGame();
 
@@ -957,6 +1021,7 @@ export default function ChaosMonkey() {
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
       cancelAnimationFrame(gameLoopId);
+      if (apeIntervalId) clearInterval(apeIntervalId);
     };
   }, [gameStarted]);
 
@@ -972,23 +1037,44 @@ export default function ChaosMonkey() {
       </h1>
 
       {!gameStarted ? (
-        <div className="flex flex-col items-center justify-center p-8 bg-black text-white w-full h-[600px]">
-          <h2 className="text-3xl mb-8 text-center font-press-start">
-            CHAOS MONKEY
-          </h2>
-          <div className="mb-8 text-center">
-            <p className="mb-4">Use arrow keys to move</p>
-            <p className="mb-4">Collect 25 UBI Credits to win</p>
-            <p className="mb-4">Avoid apes unless you have power-up</p>
-            <p className="mb-4">Blue power-ups let you eat apes!</p>
-            <p className="mb-4">Eating one ape destroys two more!</p>
+        <div
+          className="flex flex-col items-center justify-center p-8 w-full h-[600px] relative overflow-hidden"
+          style={{
+            backgroundImage: "url('/a-ok-8bit-retro.png')",
+            backgroundSize: "cover",
+            backgroundPosition: "center",
+          }}
+        >
+          {/* Overlay for readability */}
+          <div className="absolute inset-0 bg-black bg-opacity-60 z-0" />
+          <div className="relative z-10 flex flex-col items-center">
+            <h2 className="text-5xl mb-24 text-center font-press-start text-white drop-shadow-lg">
+              CHAOS MONKEY
+            </h2>
+            <div className="mb-8 text-center text-white drop-shadow-lg font-bold">
+              <p className="mb-4 inline-block px-4 py-2 rounded bg-black bg-opacity-50">
+                Use arrow keys to move
+              </p>
+              <p className="mb-4 inline-block px-4 py-2 rounded bg-black bg-opacity-50">
+                Collect 25 UBI Credits to win—and win a 25% off discount code
+              </p>
+              <p className="mb-4 inline-block px-4 py-2 rounded bg-black bg-opacity-50">
+                Blue power-ups let you eat apes!
+              </p>
+              <p className="mb-4 inline-block px-4 py-2 rounded bg-black bg-opacity-50">
+                Avoid apes unless you have power-up
+              </p>
+              <p className="mb-4 inline-block px-4 py-2 rounded bg-black bg-opacity-50">
+                Eating one ape destroys two more!
+              </p>
+            </div>
+            <button
+              onClick={() => setGameStarted(true)}
+              className="px-8 py-4 mt-16 bg-green-500 text-white font-bold rounded font-press-start shadow-lg"
+            >
+              START GAME
+            </button>
           </div>
-          <button
-            onClick={() => setGameStarted(true)}
-            className="px-8 py-4 bg-green-500 text-white font-bold rounded font-press-start"
-          >
-            START GAME
-          </button>
         </div>
       ) : (
         <canvas
